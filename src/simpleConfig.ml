@@ -389,8 +389,20 @@ let safe_string s =
 let with_help = ref false
 
 let comment s =
-  Printf.sprintf "(* %s *)"
-    (OcpString.replace_chars s  ['\n', " *)\n(* "])
+  let buf = Buffer.create (String.length s * 11 / 10) in
+  let rec aux n0 =
+    Buffer.add_string buf "(* ";
+    try
+      let n1 = String.index_from s n0 '\n' in
+      Buffer.add_substring buf s n0 (n1 - n0);
+      Buffer.add_string buf " *)\n";
+      if n1 < String.length s - 1 then aux (n1 + 1)
+    with Not_found ->
+      Buffer.add_substring buf s n0 (String.length s - n0);
+      Buffer.add_string buf " *)"
+  in
+  aux 0;
+  Buffer.contents buf
 
 let compact_string oc f =
   let b = Buffer.create 100 in
