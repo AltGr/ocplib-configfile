@@ -11,6 +11,11 @@
 (*                                                                            *)
 (******************************************************************************)
 
+module IntMap = Map.Make(struct
+    type t = int
+    let compare x y = Pervasives.compare x y
+  end)
+
 module LowLevel = struct
 
 open Genlex

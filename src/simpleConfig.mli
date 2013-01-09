@@ -80,6 +80,7 @@ val file_option : string option_class
 (* parameterized options *)
 val list_option : 'a option_class -> 'a list option_class
 val array_option : 'a option_class -> 'a array option_class
+module IntMap: Map.S with type key = int
 val intmap_option : ('a -> int) -> 'a option_class -> 'a IntMap.t option_class
 val option_option : 'a option_class -> 'a option option_class
 val smalllist_option : 'a option_class -> 'a list option_class
