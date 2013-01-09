@@ -1,0 +1,3 @@
+requires = "unix"
+archive(byte) = "ocplib-configfile.cma"
+archive(native) = "ocplib-configfile.cmxa"

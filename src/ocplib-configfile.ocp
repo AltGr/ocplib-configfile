@@ -1,0 +1,9 @@
+begin library "ocplib-configfile"
+  sort = true
+  files = [ "configFile.ml" (pp = [ "camlp4o" ]) ]
+  requires = [ "unix" ]
+end
+
+begin library "unix"
+  generated = true
+end
