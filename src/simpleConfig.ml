@@ -59,7 +59,7 @@ and 'a config_option =
   }
 
 and config_file =
-    { mutable file_name : File.t;
+    { mutable file_name : string;
       mutable file_sections : config_section list;
       mutable file_rc : option_module;
       mutable file_pruned : bool;
@@ -256,17 +256,17 @@ let exec_class_hooks o =
   exec_hooks "class" o.option_class.class_hooks o
 
 let really_load filename sections =
-  let temp_file = File.add_suffix filename ".tmp" in
-  if File.X.exists temp_file then
+  let temp_file = filename ^ ".tmp" in
+  if Sys.file_exists temp_file then
     begin
-      Printf.eprintf "File %s exists\n" (File.to_string temp_file);
+      Printf.eprintf "File %s exists\n" temp_file;
       Printf.eprintf "An error may have occurred during previous configuration save.\n";
       Printf.eprintf "Please, check your configurations files, and rename/remove this file\n";
       Printf.eprintf "before restarting\n";
       exit 1
     end
   else
-    let ic = File.X.open_in filename in
+    let ic = open_in filename in
     try
       let s = Stream.of_channel ic in
       try
@@ -276,7 +276,7 @@ let really_load filename sections =
           try parse_gwmlrc stream with
               e ->
                 Printf.eprintf "Syntax error while parsing file %s at pos %d:(%s)\n"
-                  (File.to_string filename) (Stream.count s) (Printexc.to_string e);
+                  filename (Stream.count s) (Printexc.to_string e);
                 exit 2
         in
         Hashtbl.clear once_values;
@@ -297,14 +297,14 @@ let really_load filename sections =
                 begin
                   Printf.fprintf stderr "Option ";
                   List.iter (fun s -> Printf.fprintf stderr "%s " s) o.option_name;
-                  Printf.fprintf stderr "not found in %s\n" (File.to_string filename);
+                  Printf.fprintf stderr "not found in %s\n" filename;
                 end
             | e ->
               Printf.fprintf stderr "Exception: %s while handling option:"
                 (Printexc.to_string e);
               List.iter (fun s -> Printf.fprintf stderr "%s " s) o.option_name;
               Printf.fprintf stderr "\n";
-              Printf.fprintf stderr "  in %s\n" (File.to_string filename);
+              Printf.fprintf stderr "  in %s\n" filename;
               Printf.fprintf stderr "Aborting\n.";
               exit 2
         in
@@ -318,7 +318,7 @@ let really_load filename sections =
         list
       with
         e ->
-        Printf.fprintf stderr "Error %s in %s\n" (Printexc.to_string e) (File.to_string filename);
+        Printf.fprintf stderr "Error %s in %s\n" (Printexc.to_string e) filename;
           []
     with
       e -> close_in ic; raise e
@@ -519,7 +519,7 @@ let append opfile filename =
       really_load filename opfile.file_sections @
         opfile.file_rc
   with
-    Not_found -> Printf.fprintf stderr "No %s found\n" (File.to_string filename)
+    Not_found -> Printf.fprintf stderr "No %s found\n" filename
 
 let ( !! ) o = o.option_value
 let ( =:= ) o v = o.option_value <- v; exec_class_hooks o; exec_option_hooks o
@@ -872,16 +872,16 @@ let title_opfile = ref true;;
 let save opfile =
   exec_weighted_hooks "before_save" opfile.file_before_save_hooks ();
   let filename = opfile.file_name in
-  let temp_file = File.add_suffix filename ".tmp" in
+  let temp_file = filename ^ ".tmp" in
   let old_file =
-    let old_file = File.add_suffix filename ".old" in
-    let old_old_file = File.add_suffix old_file ".old" in
-    if File.X.exists old_old_file then Sys.remove (File.to_string old_old_file);
-    if File.X.exists old_file then
-      Sys.rename (File.to_string old_file) (File.to_string old_old_file);
+    let old_file = filename ^ ".old" in
+    let old_old_file = old_file ^ ".old" in
+    if Sys.file_exists old_old_file then
+      Sys.remove old_old_file;
+    if Sys.file_exists old_file then
+      Sys.rename old_file old_old_file;
     old_file in
-  let oc = Buffer.create 1000 in
-  (*  let oc = open_out temp_file in *)
+  let buf = Buffer.create 1000 in
   try
     once_values_counter := 0;
     title_opfile := true;
@@ -894,45 +894,45 @@ let save opfile =
           o.option_level = 0) s.section_options in
       if options <> [] then begin
         if s.section_name <> [] then begin
-          Printf.bprintf oc "\n\n";
-          Printf.bprintf oc "(*************************************)\n";
+          Printf.bprintf buf "\n\n";
+          Printf.bprintf buf "(*************************************)\n";
           if !title_opfile then begin
-            Printf.bprintf oc "(*   Never edit options files while  *)\n";
-            Printf.bprintf oc "(*       the program is running      *)\n";
-            Printf.bprintf oc "(*************************************)\n";
+            Printf.bprintf buf "(*   Never edit options files while  *)\n";
+            Printf.bprintf buf "(*       the program is running      *)\n";
+            Printf.bprintf buf "(*************************************)\n";
             title_opfile := false;
           end;
-          Printf.bprintf oc "(* SECTION : %-23s *)\n" (string_of_string_list s.section_name);
-          Printf.bprintf oc "(* %-33s *)\n" s.section_help;
-          Printf.bprintf oc "(*************************************)\n";
-          Printf.bprintf oc "\n\n";
+          Printf.bprintf buf "(* SECTION : %-23s *)\n" (string_of_string_list s.section_name);
+          Printf.bprintf buf "(* %-33s *)\n" s.section_help;
+          Printf.bprintf buf "(*************************************)\n";
+          Printf.bprintf buf "\n\n";
         end;
-        save_module "" oc (List.map option_to_value options)
+        save_module "" buf (List.map option_to_value options)
       end
     ) opfile.file_sections;
     if !advanced then begin
-      Printf.bprintf oc "\n\n\n";
-      Printf.bprintf oc "(*****************************************************************)\n";
-      Printf.bprintf oc "(*                                                               *)\n";
-      Printf.bprintf oc "(*                       ADVANCED OPTIONS                        *)\n";
-      Printf.bprintf oc "(*                                                               *)\n";
-      Printf.bprintf oc "(*        All the options after this line are for the expert     *)\n";
-      Printf.bprintf oc "(*        user. Do not modify them if you are not   sure.        *)\n";
-      Printf.bprintf oc "(*                                                               *)\n";
-      Printf.bprintf oc "(*****************************************************************)\n";
-      Printf.bprintf oc "\n\n\n";
+      Printf.bprintf buf "\n\n\n";
+      Printf.bprintf buf "(*****************************************************************)\n";
+      Printf.bprintf buf "(*                                                               *)\n";
+      Printf.bprintf buf "(*                       ADVANCED OPTIONS                        *)\n";
+      Printf.bprintf buf "(*                                                               *)\n";
+      Printf.bprintf buf "(*        All the options after this line are for the expert     *)\n";
+      Printf.bprintf buf "(*        user. Do not modify them if you are not   sure.        *)\n";
+      Printf.bprintf buf "(*                                                               *)\n";
+      Printf.bprintf buf "(*****************************************************************)\n";
+      Printf.bprintf buf "\n\n\n";
       List.iter (fun s ->
         let options = List.filter (fun o -> o.option_level > 0)
           s.section_options in
         if options = [] then () else let _ = () in
-                                     Printf.bprintf oc "\n\n";
-                                     Printf.bprintf oc "(*************************************)\n";
+                                     Printf.bprintf buf "\n\n";
+                                     Printf.bprintf buf "(*************************************)\n";
 
-                                     Printf.bprintf oc "(* SECTION : %-11s FOR EXPERTS *)\n" (string_of_string_list s.section_name);
-                                     Printf.bprintf oc "(* %-33s *)\n" s.section_help;
-                                     Printf.bprintf oc "(*************************************)\n";
-                                     Printf.bprintf oc "\n\n";
-                                     save_module "" oc (List.map option_to_value options)
+                                     Printf.bprintf buf "(* SECTION : %-11s FOR EXPERTS *)\n" (string_of_string_list s.section_name);
+                                     Printf.bprintf buf "(* %-33s *)\n" s.section_help;
+                                     Printf.bprintf buf "(*************************************)\n";
+                                     Printf.bprintf buf "\n\n";
+                                     save_module "" buf (List.map option_to_value options)
       ) opfile.file_sections;
     end;
     if not opfile.file_pruned then
@@ -959,24 +959,27 @@ let save opfile =
           )
           opfile.file_rc;
         if !rem <> [] then begin
-          Printf.bprintf oc "\n(*\n The following options are not used (errors, obsolete, ...) \n*)\n";
+          Printf.bprintf buf "\n(*\n The following options are not used (errors, obsolete, ...) \n*)\n";
           List.iter (fun (name, value) ->
-            Printf.bprintf oc "%s = " (safe_string name);
-            save_value "  " oc value;
-            Printf.bprintf oc "\n"
+            Printf.bprintf buf "%s = " (safe_string name);
+            save_value "  " buf value;
+            Printf.bprintf buf "\n"
           ) !rem;
         end;
         opfile.file_rc <- !rem
       end;
     Hashtbl.clear once_values_rev;
-    File.X.write_of_string temp_file (Buffer.contents oc);
-    begin try File.X.rename filename old_file with  _ -> () end;
-    begin try File.X.rename temp_file filename with _ -> () end;
+    let oc = open_out temp_file in
+    Buffer.output_buffer oc buf;
+    close_out oc;
+    begin try Sys.rename filename old_file with  _ -> () end;
+    begin try Sys.rename temp_file filename with _ -> () end;
     exec_hooks "after_save" opfile.file_after_save_hooks ();
   with
       e ->
-        File.X.write_of_string temp_file (Buffer.contents oc);
-        exec_hooks "after_save" opfile.file_after_save_hooks ();
+        let oc = open_out temp_file in
+        Buffer.output_buffer oc buf;
+        close_out oc;
         raise e
 
 let save_with_help opfile =
@@ -1092,12 +1095,11 @@ let tuple5_option p =
 
 
 let value_to_filename v =
-  File.of_string
-    (match v with
-       StringValue s -> s
-     | _ -> failwith "Options: not a filename option")
+  match v with
+    StringValue s -> s
+  | _ -> failwith "Options: not a filename option"
 
-let filename_to_value v = StringValue (File.to_string v)
+let filename_to_value v = StringValue v
 
 let file_option =
   define_option_class "Filename" value_to_filename filename_to_value
@@ -1148,7 +1150,7 @@ let get_option opfile name =
           [] ->
             prerr_endline
               (Printf.sprintf "option [%s] not_found in %s"
-                (String.concat ";" name) (File.to_string opfile.file_name));
+                (String.concat ";" name) opfile.file_name);
             raise Not_found
         | s :: tail ->
             iter name s.section_options tail

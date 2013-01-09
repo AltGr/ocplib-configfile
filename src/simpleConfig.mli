@@ -21,7 +21,7 @@
 
 type config_file
 
-val create_config_file : File.t -> config_file
+val create_config_file : string -> config_file
 
 
 
@@ -36,7 +36,7 @@ val load : config_file -> unit
 
 (* [append file filename] loads the specified option file. All options whose
 value is specified in this file are updated. *)
-val append : config_file -> File.t -> unit
+val append : config_file -> string -> unit
 
 (*d [save ()] saves all the options values to the option file. *)
 val save : config_file -> unit
@@ -45,8 +45,8 @@ val save : config_file -> unit
 with the help provided for each option. *)
 val save_with_help : config_file -> unit
 
-val config_file : config_file -> File.t
-val set_config_file : config_file -> File.t -> unit
+val config_file : config_file -> string
+val set_config_file : config_file -> string -> unit
 
 (* Loading and saving Hooks *)
 
@@ -75,7 +75,7 @@ val int64_option : int64 option_class
 val bool_option : bool option_class
 val float_option : float option_class
 val string2_option : (string * string) option_class
-val file_option : File.t option_class
+val file_option : string option_class
 
 (* parameterized options *)
 val list_option : 'a option_class -> 'a list option_class
@@ -222,8 +222,8 @@ val tuple2_to_value :
   ('a -> option_value * option_value) -> 'a -> option_value
 
 
-val filename_to_value : File.t -> option_value
-val value_to_filename : option_value -> File.t
+val filename_to_value : string -> option_value
+val value_to_filename : option_value -> string
 
 val set_simple_option : config_file -> string -> string -> unit
 val get_simple_option : config_file -> string -> string
