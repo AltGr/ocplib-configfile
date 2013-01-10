@@ -16,6 +16,7 @@ install: all
 	ocamlfind install ocplib-configfile META \
 	  _obuild/$(NAME)/*.cmi \
 	  _obuild/$(NAME)/*.cmti \
+	  _obuild/$(NAME)/*.cmt \
 	  _obuild/$(NAME)/*.cma \
 	  _obuild/$(NAME)/*.cmxa
 
