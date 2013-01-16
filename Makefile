@@ -8,6 +8,7 @@ $(NAME): ocp-build.root
 
 ocp-build.root:
 	ocp-build -init -scan
+	rm ocp-build.root.old
 
 clean:
 	ocp-build -clean
